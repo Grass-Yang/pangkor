@@ -2,102 +2,212 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <title>测试地图 - 信息面板功能</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Responsive Map Demo</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet/dist/leaflet.css"
+  />
   <style>
-    * {
-      box-sizing: border-box;
-    }
-    body, html {
+    html, body {
       margin: 0;
       padding: 0;
       height: 100%;
       font-family: sans-serif;
     }
-    .container {
-      display: flex;
+
+    #map {
       height: 100vh;
-      flex-direction: row;
-    }
-    .map-wrapper {
-      flex: 1;
-      position: relative;
-      overflow: hidden;
-    }
-    .panzoom-container {
       width: 100%;
+    }
+
+    #info-panel {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 320px;
+      max-width: 90%;
       height: 100%;
-      position: relative;
+      background: #fff;
+      box-shadow: -2px 0 8px rgba(0, 0, 0, 0.2);
+      padding: 16px;
+      box-sizing: border-box;
+      overflow-y: auto;
+      display: none; /* 默认隐藏 */
+      z-index: 1000;
     }
-    .map-img {
-      width: 100%;
-      height: auto;
+
+    #info-panel.active {
       display: block;
     }
-    .marker {
+
+    #info-panel h2 {
+      margin-top: 0;
+    }
+
+    #info-panel img {
+      width: 100%;
+      margin-top: 10px;
+      border-radius: 6px;
+    }
+
+    #info-panel .close-btn {
       position: absolute;
-      width: 20px;
-      height: 20px;
-      background-color: red;
-      border-radius: 50%;
+      top: 8px;
+      right: 12px;
+      font-size: 20px;
       cursor: pointer;
-      transform: translate(-50%, -50%);
-      z-index: 2;
+      color: #999;
     }
-    .info {
-      width: 300px;
-      background: #fff;
-      border-left: 1px solid #ccc;
-      padding: 10px;
-      overflow-y: auto;
-      display: none;
-      z-index: 10;
+
+    #info-panel .info-row {
+      margin-top: 10px;
     }
-    @media (max-width: 768px) {
-      .container {
-        flex-direction: column;
-      }
-      .info {
-        width: 100%;
-        height: 40%;
-        border-left: none;
-        border-top: 1px solid #ccc;
-        position: absolute;
-        bottom: 0;
-        left: 0;
-      }
+
+    #info-panel a {
+      color: #007bff;
+      text-decoration: none;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="map-wrapper">
-      <div id="panzoom" class="panzoom-container">
-        <img src="https://i.pinimg.com/736x/ef/b2/d3/efb2d387d485de0225b62eacd39bc524.jpg" class="map-img" alt="Map" />
-        <!-- Example markers -->
-        <div class="marker" style="top: 30%; left: 50%;" onclick="showInfo('Location 1')"></div>
-        <div class="marker" style="top: 60%; left: 70%;" onclick="showInfo('Location 2')"></div>
-      </div>
+  <div id="map"></div>
+  <div id="info-panel">
+    <div class="close-btn" onclick="closePanel()">✖</div>
+    <h2 id="place-title">标题</h2>
+    <img id="place-image" src="" alt="图片" />
+    <div class="info-row" id="place-desc"></div>
+    <div class="info-row" id="place-contact"></div>
+    <div class="info-row">
+      <a id="place-link" href="#" target="_blank">📍 在 Google Maps 打开</a>
     </div>
-    <div class="info" id="infoBox"></div>
   </div>
 
-  <script src="https://unpkg.com/@panzoom/panzoom@9.4.0/dist/panzoom.min.js"></script>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    function showInfo(content) {
-      const infoBox = document.getElementById('infoBox');
-      infoBox.innerHTML = `<h2>${content}</h2><p>This is some information about ${content}.</p>`;
-      infoBox.style.display = 'block';
-    }
-
-    const panzoomElement = document.getElementById('panzoom');
-    const panzoom = Panzoom(panzoomElement, {
-      maxScale: 5,
-      minScale: 1,
-      contain: 'outside'
+    // 初始化地图
+    const map = L.map('map', {
+      crs: L.CRS.Simple,
+      minZoom: -1
     });
 
-    panzoomElement.parentElement.addEventListener('wheel', panzoom.zoomWithWheel);
+    const imageWidth = 736;
+    const imageHeight = 1098;
+    const bounds = [[0, 0], [imageHeight, imageWidth]];
+
+    const imageUrl = 'https://i.pinimg.com/736x/ef/b2/d3/efb2d387d485de0225b62eacd39bc524.jpg';
+    L.imageOverlay(imageUrl, bounds).addTo(map);
+    map.fitBounds(bounds);
+
+    const redIcon = L.icon({
+      iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32]
+    });
+
+    const places = [
+      {
+        name: "艺术馆",
+        coords: [300, 400],
+        desc: "本地艺术展出空间。",
+        img: "https://via.placeholder.com/300x150.png?text=艺术馆",
+        phone: "012-3456789",
+        link: "https://maps.google.com?q=艺术馆"
+      },
+      {
+        name: "手工坊",
+        coords: [500, 200],
+        desc: "体验传统手工艺制作。",
+        img: "https://via.placeholder.com/300x150.png?text=手工坊",
+        phone: "011-2233445",
+        link: "https://maps.google.com?q=手工坊"
+      },
+      {
+        name: "咖啡馆",
+        coords: [700, 600],
+        desc: "放松喝杯咖啡的好地方。",
+        img: "https://via.placeholder.com/300x150.png?text=咖啡馆",
+        phone: "017-8899776",
+        link: "https://maps.google.com?q=咖啡馆"
+      },
+      {
+        name: "码头",
+        coords: [950, 300],
+        desc: "连接岛屿的老码头。",
+        img: "https://via.placeholder.com/300x150.png?text=码头",
+        phone: "019-4455667",
+        link: "https://maps.google.com?q=码头"
+      },
+      {
+        name: "历史街道",
+        coords: [850, 150],
+        desc: "保留老建筑的文化街道。",
+        img: "https://via.placeholder.com/300x150.png?text=历史街道",
+        phone: "013-5544332",
+        link: "https://maps.google.com?q=历史街道"
+      },
+      {
+        name: "灯塔",
+        coords: [100, 650],
+        desc: "可眺望全岛风景的灯塔。",
+        img: "https://via.placeholder.com/300x150.png?text=灯塔",
+        phone: "016-1122334",
+        link: "https://maps.google.com?q=灯塔"
+      },
+      {
+        name: "书屋",
+        coords: [420, 720],
+        desc: "独立书店，贩售二手与新书。",
+        img: "https://via.placeholder.com/300x150.png?text=书屋",
+        phone: "018-6677889",
+        link: "https://maps.google.com?q=书屋"
+      },
+      {
+        name: "社区中心",
+        coords: [600, 500],
+        desc: "本地人聚会与活动场所。",
+        img: "https://via.placeholder.com/300x150.png?text=社区中心",
+        phone: "012-9988776",
+        link: "https://maps.google.com?q=社区中心"
+      },
+      {
+        name: "自然步道",
+        coords: [750, 400],
+        desc: "生态保护区的起点。",
+        img: "https://via.placeholder.com/300x150.png?text=自然步道",
+        phone: "014-3322110",
+        link: "https://maps.google.com?q=自然步道"
+      },
+      {
+        name: "小吃摊",
+        coords: [550, 850],
+        desc: "地道小吃美食集中地。",
+        img: "https://via.placeholder.com/300x150.png?text=小吃摊",
+        phone: "010-5566778",
+        link: "https://maps.google.com?q=小吃摊"
+      }
+    ];
+
+    places.forEach(place => {
+      const marker = L.marker(place.coords, { icon: redIcon }).addTo(map);
+      marker.on('click', () => {
+        showInfo(place);
+      });
+    });
+
+    function showInfo(place) {
+      document.getElementById("place-title").innerText = place.name;
+      document.getElementById("place-image").src = place.img;
+      document.getElementById("place-desc").innerText = place.desc;
+      document.getElementById("place-contact").innerText = `📞 ${place.phone}`;
+      document.getElementById("place-link").href = place.link;
+      document.getElementById("info-panel").classList.add("active");
+    }
+
+    function closePanel() {
+      document.getElementById("info-panel").classList.remove("active");
+    }
   </script>
 </body>
 </html>
